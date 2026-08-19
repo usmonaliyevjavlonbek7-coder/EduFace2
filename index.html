@@ -1,0 +1,1444 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>EduFace — Maktab Davomat Tizimi</title>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/dist/face-api.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+  --bg: #0a0e1a;
+  --surface: rgba(255,255,255,0.045);
+  --surface2: rgba(255,255,255,0.07);
+  --surface3: rgba(255,255,255,0.11);
+  --border: rgba(255,255,255,0.1);
+  --border-strong: rgba(255,255,255,0.2);
+  --accent: #00c896;
+  --accent2: #7c6af7;
+  --accent3: #f77c6a;
+  --text: #eef2f7;
+  --text2: #9aa7bd;
+  --text3: #5a6578;
+  --success: #3fb950;
+  --warning: #d29922;
+  --danger: #f85149;
+  --radius: 18px;
+  --radius-sm: 12px;
+  --radius-xs: 8px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; }
+body {
+  background:
+    radial-gradient(ellipse at 18% -5%, rgba(124,106,247,0.28), transparent 50%),
+    radial-gradient(ellipse at 85% 105%, rgba(0,200,150,0.26), transparent 50%),
+    radial-gradient(ellipse at 55% 50%, rgba(247,124,106,0.14), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.layout { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 240px;
+  background: rgba(10,14,26,0.5);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; position: fixed; top: 0; left: 0; height: 100vh;
+  z-index: 100; transition: transform 0.3s;
+}
+.sidebar-logo {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+}
+.logo-icon {
+  width: 38px; height: 38px; background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border-radius: 12px; display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0; box-shadow: 0 6px 18px rgba(124,106,247,0.45);
+}
+.logo-text { font-size: 1.1rem; font-weight: 800; color: var(--text); letter-spacing: -0.5px; }
+.logo-sub { font-size: 0.65rem; color: var(--text2); font-weight: 500; }
+
+.nav-section { padding: 16px 12px 8px; }
+.nav-label { font-size: 0.65rem; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; padding: 0 8px; margin-bottom: 6px; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 11px 13px; border-radius: var(--radius-sm);
+  cursor: pointer; transition: all 0.2s; font-size: 0.875rem; font-weight: 500; color: var(--text2);
+  border: 1px solid transparent; background: none; width: 100%; text-align: left;
+}
+.nav-item:hover { background: var(--surface2); color: var(--text); border-color: var(--border); }
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(0,200,150,0.18), rgba(124,106,247,0.14));
+  color: var(--accent); border-color: rgba(0,200,150,0.3);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+}
+.nav-item .nav-icon { font-size: 1.05rem; width: 20px; text-align: center; flex-shrink: 0; }
+.nav-badge { margin-left: auto; background: var(--accent); color: #0a0e1a; font-size: 0.65rem; font-weight: 800; padding: 2px 7px; border-radius: 20px; }
+
+.sidebar-footer { margin-top: auto; padding: 16px 12px; border-top: 1px solid var(--border); }
+
+.main { margin-left: 240px; flex: 1; min-height: 100vh; }
+.topbar {
+  background: rgba(10,14,26,0.45);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px; height: 64px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 50;
+}
+.topbar-title { font-size: 1.05rem; font-weight: 700; color: var(--text); }
+.topbar-right { display: flex; align-items: center; gap: 14px; }
+.burger { display: none; background: var(--surface2); border: 1px solid var(--border); color: var(--text); font-size: 1.3rem; cursor: pointer; padding: 6px 10px; border-radius: 10px; }
+.topbar-date { font-size: 0.78rem; color: var(--text); font-weight: 600; background: var(--surface2); padding: 7px 14px; border-radius: 20px; border: 1px solid var(--border); backdrop-filter: blur(10px); }
+.notification-bell { position: relative; cursor: pointer; font-size: 1.1rem; padding: 8px; background: var(--surface2); border-radius: 10px; border: 1px solid var(--border); transition: all 0.2s; backdrop-filter: blur(10px); }
+.notification-bell:hover { background: var(--surface3); }
+.notif-dot { position: absolute; top: 6px; right: 6px; width: 8px; height: 8px; background: var(--danger); border-radius: 50%; border: 2px solid rgba(10,14,26,0.9); }
+
+.page-content { padding: 28px; display: none; }
+.page-content.active { display: block; animation: fadeUp 0.35s ease; }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+.card {
+  background: var(--surface);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px; margin-bottom: 20px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.card-title { font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+
+.stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+.stat-card {
+  background: var(--surface);
+  backdrop-filter: blur(22px) saturate(150%);
+  -webkit-backdrop-filter: blur(22px) saturate(150%);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px; position: relative; overflow: hidden;
+  transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.stat-card:hover { transform: translateY(-3px); box-shadow: 0 14px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.12); border-color: var(--border-strong); }
+.stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: var(--radius) var(--radius) 0 0; }
+.stat-card.green::before { background: linear-gradient(90deg, var(--accent), #00e5b0); }
+.stat-card.purple::before { background: linear-gradient(90deg, var(--accent2), #a98cf9); }
+.stat-card.orange::before { background: linear-gradient(90deg, var(--accent3), #f9a87c); }
+.stat-card.blue::before { background: linear-gradient(90deg, #58a6ff, #79c0ff); }
+.stat-label { font-size: 0.72rem; color: var(--text2); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+.stat-value { font-size: 2.1rem; font-weight: 800; color: var(--text); letter-spacing: -1px; line-height: 1; }
+.stat-sub { font-size: 0.72rem; color: var(--text2); margin-top: 6px; font-weight: 500; }
+.stat-icon { position: absolute; right: 18px; top: 18px; font-size: 1.7rem; opacity: 0.18; }
+
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 16px; }
+.form-group label { display: block; font-size: 0.72rem; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px; }
+.form-group input, .form-group select {
+  width: 100%; padding: 11px 14px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); color: var(--text); font-size: 0.875rem; font-family: inherit;
+  transition: all 0.2s; outline: none;
+  backdrop-filter: blur(10px);
+}
+.form-group input:focus, .form-group select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(0,200,150,0.16); background: rgba(255,255,255,0.07); }
+.form-group input::placeholder { color: var(--text3); }
+.form-group select option { background: #141a2b; }
+
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 11px 18px; border-radius: var(--radius-sm); font-size: 0.84rem; font-weight: 700; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; font-family: inherit; }
+.btn-primary { background: linear-gradient(135deg, var(--accent), #00b085); color: #06140f; box-shadow: 0 6px 20px rgba(0,200,150,0.35); }
+.btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 28px rgba(0,200,150,0.45); }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border-strong); backdrop-filter: blur(10px); }
+.btn-secondary:hover { background: var(--surface3); border-color: rgba(255,255,255,0.28); }
+.btn-danger { background: rgba(248,81,73,0.16); color: var(--danger); border: 1px solid rgba(248,81,73,0.35); backdrop-filter: blur(10px); }
+.btn-danger:hover { background: rgba(248,81,73,0.26); }
+.btn-sm { padding: 6px 12px; font-size: 0.75rem; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 16px; }
+
+.table-wrap { overflow-x: auto; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+thead th { background: rgba(255,255,255,0.04); color: var(--text2); font-weight: 700; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.5px; padding: 13px 14px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; backdrop-filter: blur(10px); }
+tbody td { padding: 12px 14px; border-bottom: 1px solid var(--border); color: var(--text); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: rgba(255,255,255,0.04); }
+
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 700; border: 1px solid transparent; }
+.badge-success { background: rgba(63,185,80,0.16); color: var(--success); border-color: rgba(63,185,80,0.3); }
+.badge-warning { background: rgba(210,153,34,0.16); color: var(--warning); border-color: rgba(210,153,34,0.3); }
+.badge-danger { background: rgba(248,81,73,0.16); color: var(--danger); border-color: rgba(248,81,73,0.3); }
+.badge-purple { background: rgba(124,106,247,0.16); color: var(--accent2); border-color: rgba(124,106,247,0.3); }
+.badge-default { background: var(--surface3); color: var(--text2); }
+
+.camera-layout { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+.video-wrap { position: relative; background: #000; border-radius: var(--radius); overflow: hidden; aspect-ratio: 16/9; border: 1px solid var(--border); box-shadow: 0 12px 40px rgba(0,0,0,0.4); }
+#webcamVideo { position: absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; }
+#overlayCanvas { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; }
+.camera-status-bar {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: linear-gradient(transparent, rgba(0,0,0,0.85));
+  padding: 20px 16px 12px; display: flex; align-items: center; gap: 10px;
+}
+.cam-pulse { width: 10px; height: 10px; border-radius: 50%; background: var(--success); flex-shrink:0; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1; transform:scale(1);} 50%{opacity:0.5; transform:scale(1.3);} }
+.cam-status-text { font-size: 0.8rem; font-weight: 600; color: #fff; }
+
+.live-list { max-height: 500px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.live-item {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 12px 14px;
+  display: flex; align-items: center; gap: 12px; transition: all 0.3s;
+  backdrop-filter: blur(10px);
+}
+.live-item.new-entry { border-color: var(--accent); background: rgba(0,200,150,0.1); animation: slideIn 0.4s ease; box-shadow: 0 0 18px rgba(0,200,150,0.2); }
+@keyframes slideIn { from{opacity:0; transform:translateX(20px);} to{opacity:1; transform:translateX(0);} }
+.live-avatar { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink:0; }
+.live-avatar.teacher { background: rgba(124,106,247,0.22); }
+.live-avatar.student { background: rgba(0,200,150,0.22); }
+.live-name { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+.live-meta { font-size: 0.7rem; color: var(--text2); margin-top: 2px; }
+.live-time { margin-left: auto; font-size: 0.72rem; color: var(--text2); text-align:right; }
+
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.chart-box { background: rgba(255,255,255,0.04); border-radius: var(--radius-sm); padding: 16px; border: 1px solid var(--border); }
+.chart-box canvas { max-height: 260px; }
+
+.notif-panel {
+  position: fixed; top: 64px; right: 0; width: 340px;
+  background: rgba(10,14,26,0.7);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border-left: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  border-radius: 0 0 0 var(--radius); max-height: 70vh; overflow-y: auto;
+  z-index: 200; transform: translateX(100%); transition: transform 0.3s;
+  box-shadow: -10px 20px 50px rgba(0,0,0,0.4);
+}
+.notif-panel.open { transform: translateX(0); }
+.notif-header { padding: 16px; border-bottom: 1px solid var(--border); font-size: 0.875rem; font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
+.notif-item { padding: 14px 16px; border-bottom: 1px solid var(--border); display: flex; gap: 12px; align-items: flex-start; cursor: pointer; transition: background 0.2s; }
+.notif-item:hover { background: var(--surface2); }
+.notif-item-icon { font-size: 1.2rem; margin-top: 1px; flex-shrink:0; }
+.notif-item-text { font-size: 0.78rem; color: var(--text); line-height: 1.4; }
+.notif-item-time { font-size: 0.68rem; color: var(--text3); margin-top: 4px; }
+.notif-empty { padding: 30px; text-align: center; color: var(--text2); font-size: 0.82rem; }
+
+.modal-overlay { position: fixed; top:0;left:0;width:100%;height:100%; background:rgba(5,8,15,0.7); z-index:500; display:flex;align-items:center;justify-content:center; backdrop-filter:blur(8px); }
+.modal-box {
+  background: rgba(18,22,36,0.7);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border:1px solid var(--border-strong);
+  border-radius:24px; padding:28px; width:90%; max-width:480px; text-align:center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);
+}
+.modal-box h3 { font-size:1.15rem; font-weight:800; margin-bottom:16px; }
+.modal-box video { width:100%; border-radius:var(--radius-sm); background:#000; aspect-ratio:4/3; border:1px solid var(--border); }
+.progress-track { background:var(--surface3); border-radius:20px; height:6px; margin:14px 0; overflow:hidden; }
+.progress-fill { height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); border-radius:20px; transition:width 0.2s; }
+.liveness-hint { font-size:0.85rem; color:var(--text2); margin:10px 0 16px; }
+
+.auth-wrap {
+  display:flex; align-items:center; justify-content:center; min-height:100vh;
+  background:
+    radial-gradient(ellipse at 25% 20%, rgba(124,106,247,0.35), transparent 55%),
+    radial-gradient(ellipse at 75% 80%, rgba(0,200,150,0.32), transparent 55%);
+}
+.auth-card {
+  background: rgba(18,22,36,0.55);
+  backdrop-filter: blur(30px) saturate(160%);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  border:1px solid var(--border-strong);
+  border-radius:28px; padding:44px; width:90%; max-width:400px; text-align:center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.12);
+}
+.auth-logo { font-size:2.6rem; margin-bottom:12px; }
+.auth-card h2 { font-size:1.5rem; font-weight:800; margin-bottom:6px; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.auth-card p { color:var(--text2); font-size:0.85rem; margin-bottom:28px; }
+.auth-input { width:100%; padding:14px 18px; background:rgba(255,255,255,0.05); border:1px solid var(--border-strong); border-radius:var(--radius-sm); color:var(--text); font-family:inherit; text-align:center; letter-spacing:8px; font-size:1.5rem; outline:none; margin-bottom:16px; transition: all 0.2s; backdrop-filter: blur(10px); }
+.auth-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,200,150,0.16); background:rgba(255,255,255,0.07); }
+.auth-error { color:var(--danger); font-size:0.82rem; min-height:20px; margin-top:8px; }
+
+.sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(5,8,15,0.6); backdrop-filter: blur(4px); z-index:90; }
+
+::-webkit-scrollbar { width:6px; height:6px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border-strong); border-radius:10px; }
+::-webkit-scrollbar-thumb:hover { background:var(--text3); }
+
+@media (max-width: 1024px) {
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .charts-grid { grid-template-columns: 1fr; }
+  .camera-layout { grid-template-columns: 1fr; }
+  .live-list { max-height: 300px; }
+}
+@media (max-width: 768px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .sidebar-overlay { display: block; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+  .sidebar-overlay.open { opacity: 1; pointer-events: auto; }
+  .main { margin-left: 0; }
+  .burger { display: block; }
+  .topbar { padding: 0 16px; }
+  .page-content { padding: 16px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat-value { font-size: 1.7rem; }
+  .notif-panel { width: 100%; }
+  .btn-row { flex-direction: column; align-items: stretch; }
+  .btn { justify-content: center; }
+}
+@media (max-width: 480px) {
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .auth-card { padding: 30px; }
+}
+
+.model-loader { display:flex; align-items:center; gap:10px; padding:10px 0; color:var(--text2); font-size:0.82rem; }
+.spinner { width:18px; height:18px; border:2px solid var(--border-strong); border-top-color:var(--accent); border-radius:50%; animation:spin 0.7s linear infinite; flex-shrink:0; }
+@keyframes spin { to{transform:rotate(360deg);} }
+
+.empty-state { text-align:center; padding:40px 20px; color:var(--text2); }
+.empty-state .empty-icon { font-size:2.5rem; margin-bottom:12px; }
+.empty-state p { font-size:0.85rem; }
+
+.tag { display:inline-block; padding:3px 9px; border-radius:6px; font-size:0.68rem; font-weight:700; background:var(--surface3); color:var(--text2); }
+
+.toast-container { position:fixed; bottom:20px; right:20px; z-index:1000; display:flex; flex-direction:column; gap:10px; }
+.toast { background: rgba(18,22,36,0.7); backdrop-filter: blur(20px) saturate(150%); -webkit-backdrop-filter: blur(20px) saturate(150%); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:14px 18px; font-size:0.82rem; min-width:260px; box-shadow:0 12px 32px rgba(0,0,0,0.45); animation:toastIn 0.3s ease; display:flex; align-items:center; gap:10px; }
+.toast.success { border-left:3px solid var(--success); }
+.toast.warning { border-left:3px solid var(--warning); }
+.toast.error { border-left:3px solid var(--danger); }
+@keyframes toastIn { from{opacity:0;transform:translateX(40px);} to{opacity:1;transform:translateX(0);} }
+@keyframes toastOut { from{opacity:1;transform:translateX(0);} to{opacity:0;transform:translateX(40px);} }
+</style>
+</head>
+<body>
+
+<div class="auth-wrap" id="authWrap">
+  <div class="auth-card">
+    <div class="auth-logo">🎓</div>
+    <h2>EduFace</h2>
+    <p>Maktab davomat tizimi — admin paneliga kirish</p>
+    <input type="password" class="auth-input" id="adminPwd" placeholder="····" maxlength="10" autocomplete="off">
+    <button class="btn btn-primary" style="width:100%; justify-content:center;" id="checkAdminPwd">Kirish →</button>
+    <div class="auth-error" id="pwdError"></div>
+    <p style="margin-top:20px; color:var(--text3); font-size:0.72rem;">Demo parol: 2222</p>
+  </div>
+</div>
+
+<div class="layout" id="appLayout" style="display:none;">
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">🎓</div>
+      <div>
+        <div class="logo-text">EduFace</div>
+        <div class="logo-sub">Davomat tizimi</div>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Asosiy</div>
+      <button class="nav-item active" data-page="dashboard">
+        <span class="nav-icon">📊</span> Bosh sahifa
+      </button>
+      <button class="nav-item" data-page="camera">
+        <span class="nav-icon">🎥</span> Kamera & Davomat
+      </button>
+      <button class="nav-item" data-page="report">
+        <span class="nav-icon">📈</span> Hisobot & Grafik
+      </button>
+    </div>
+    <div class="nav-section">
+      <div class="nav-label">Boshqaruv</div>
+      <button class="nav-item" data-page="persons">
+        <span class="nav-icon">👥</span> Shaxslar ro'yxati
+      </button>
+      <button class="nav-item" data-page="add">
+        <span class="nav-icon">➕</span> Yangi qo'shish
+      </button>
+      <button class="nav-item" data-page="percent">
+        <span class="nav-icon">🔢</span> Davomat foizi
+      </button>
+    </div>
+    <div class="sidebar-footer">
+      <div style="font-size:0.72rem; color:var(--text3);" id="storageInfo">💾 LocalStorage</div>
+    </div>
+  </nav>
+
+  <main class="main">
+    <div class="topbar">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button class="burger" id="burgerBtn">☰</button>
+        <div class="topbar-title" id="pageTitle">Bosh sahifa</div>
+      </div>
+      <div class="topbar-right">
+        <div class="topbar-date" id="topDate"></div>
+        <div class="notification-bell" id="notifBell" title="Bildirishnomalar">
+          🔔<div class="notif-dot" id="notifDot" style="display:none;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notif-panel" id="notifPanel">
+      <div class="notif-header">
+        <span>🔔 Bildirishnomalar</span>
+        <button class="btn btn-sm btn-secondary" id="clearNotifs">Tozalash</button>
+      </div>
+      <div id="notifList"><div class="notif-empty">Bildirishnomalar yo'q</div></div>
+    </div>
+
+    <div class="page-content active" id="page-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card green">
+          <div class="stat-label">Vaqtida kelgan</div>
+          <div class="stat-value" id="s-ontime">0</div>
+          <div class="stat-sub" id="s-ontime-pct">Bugun</div>
+          <div class="stat-icon">✅</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-label">Kech kelgan</div>
+          <div class="stat-value" id="s-late">0</div>
+          <div class="stat-sub" id="s-late-pct">Bugun</div>
+          <div class="stat-icon">⏰</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-label">Kelmagan</div>
+          <div class="stat-value" id="s-absent">0</div>
+          <div class="stat-sub" id="s-absent-pct">Bugun</div>
+          <div class="stat-icon">❌</div>
+        </div>
+        <div class="stat-card blue">
+          <div class="stat-label">Jami ro'yxat</div>
+          <div class="stat-value" id="s-total">0</div>
+          <div class="stat-sub">O'quvchi + o'qituvchi</div>
+          <div class="stat-icon">👥</div>
+        </div>
+      </div>
+
+      <div class="charts-grid">
+        <div class="card chart-box">
+          <div class="card-title">📊 Bugungi davomat</div>
+          <canvas id="donutChart"></canvas>
+        </div>
+        <div class="card chart-box">
+          <div class="card-title">📅 Haftalik dinamika</div>
+          <canvas id="lineChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">⚡ So'nggi faoliyat</div>
+        <div id="recentActivity">
+          <div class="empty-state"><div class="empty-icon">📭</div><p>Hozircha ma'lumot yo'q</p></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-content" id="page-camera">
+      <div class="camera-layout">
+        <div>
+          <div class="video-wrap">
+            <video id="webcamVideo" autoplay muted playsinline></video>
+            <canvas id="overlayCanvas"></canvas>
+            <div class="camera-status-bar">
+              <div class="cam-pulse" id="camPulse" style="background:var(--text3);"></div>
+              <div class="cam-status-text" id="liveStatus">Kamera tayyor emas</div>
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top:14px;">
+            <button class="btn btn-secondary" id="retryCameraBtn">📷 Qayta ulash</button>
+            <button class="btn btn-danger" id="resetAttendanceBtn">🔄 Davomatni tozalash</button>
+          </div>
+          <div id="modelLoadStatus" class="model-loader" style="margin-top:12px;"></div>
+        </div>
+        <div>
+          <div class="card" style="margin-bottom:0; height:100%;">
+            <div class="card-title">👁 Jonli aniqlanganlar</div>
+            <div class="live-list" id="liveList">
+              <div class="empty-state" style="padding:20px;"><div class="empty-icon" style="font-size:1.5rem;">⏳</div><p>Kamera ishga tushishini kuting</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:20px;">
+        <div class="card-title">📋 Bugungi davomat jadvali</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Ism Familiya</th><th>Roli</th><th>Fan / Sinf</th><th>Kelish vaqti</th><th>Holati</th></tr></thead>
+            <tbody id="attendanceBody"><tr><td colspan="5" class="empty-state" style="text-align:center; color:var(--text2); padding:20px;">Ma'lumot kutilmoqda</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-content" id="page-report">
+      <div class="card">
+        <div class="card-title">🔍 Filtr</div>
+        <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));">
+          <div class="form-group">
+            <label>Holat</label>
+            <select id="reportTypeSelect">
+              <option value="all">Barchasi</option>
+              <option value="ontime">✅ Vaqtida</option>
+              <option value="late">⏰ Kech</option>
+              <option value="absent">❌ Kelmagan</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Rol</label>
+            <select id="roleFilterSelect">
+              <option value="all">Hammasi</option>
+              <option value="teacher">O'qituvchi</option>
+              <option value="student">O'quvchi</option>
+            </select>
+          </div>
+          <div class="form-group" id="classFilterGroup" style="display:none;">
+            <label>Sinf</label>
+            <select id="classFilterSelect"><option value="">Barchasi</option></select>
+          </div>
+          <div class="form-group" id="parallelFilterGroup" style="display:none;">
+            <label>Paralel</label>
+            <select id="parallelFilterSelect"><option value="">Barchasi</option></select>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:0;">
+          <button class="btn btn-secondary" id="exportReportBtn">📎 Excel eksport</button>
+          <button class="btn btn-secondary" id="exportAllExcelBtn">📋 Ro'yxat eksport</button>
+        </div>
+      </div>
+
+      <div class="charts-grid" style="margin-bottom:20px;">
+        <div class="card chart-box">
+          <div class="card-title">🏫 O'qituvchilar davomat</div>
+          <canvas id="teacherChart"></canvas>
+        </div>
+        <div class="card chart-box">
+          <div class="card-title">🎓 O'quvchilar (sinflar bo'yicha)</div>
+          <canvas id="studentChart"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📊 Hisobot jadvali</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Ism Familiya</th><th>Roli</th><th>Fan/Sinf</th><th>Paralel</th><th>Holati</th><th>Vaqt</th></tr></thead>
+            <tbody id="reportBody"><tr><td colspan="6" style="text-align:center; padding:20px; color:var(--text2);">Filtr tanlang</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-content" id="page-persons">
+      <div class="card">
+        <div class="card-title">👥 Barcha shaxslar ro'yxati</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>F.I.O</th><th>Roli</th><th>Fan / Sinf</th><th>Paralel</th><th>Yuz</th><th>Amallar</th></tr>
+            </thead>
+            <tbody id="personsListBody"><tr><td colspan="7" style="text-align:center; padding:20px; color:var(--text2);">Yuklanmoqda...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="page-content" id="page-add">
+      <div class="card" style="max-width:700px;">
+        <div class="card-title">➕ Yangi shaxs qo'shish</div>
+        <div class="form-grid">
+          <div class="form-group"><label>Ism *</label><input type="text" id="firstName" placeholder="Ism"></div>
+          <div class="form-group"><label>Familiya *</label><input type="text" id="lastName" placeholder="Familiya"></div>
+          <div class="form-group"><label>Otasining ismi</label><input type="text" id="fatherName" placeholder="Otasining ismi"></div>
+          <div class="form-group">
+            <label>Roli *</label>
+            <select id="roleSelect">
+              <option value="teacher">👩‍🏫 O'qituvchi</option>
+              <option value="student">📚 O'quvchi</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid" id="extraFields">
+          <div class="form-group" id="subjectGroup"><label>Fan *</label><input type="text" id="subject" placeholder="Fan nomi"></div>
+          <div class="form-group" id="classGradeGroup" style="display:none;"><label>Sinf (raqam) *</label><input type="text" id="classGrade" placeholder="Masalan: 9"></div>
+          <div class="form-group" id="parallelGroup" style="display:none;"><label>Paralel (harf) *</label><input type="text" id="parallel" placeholder="A, B, C..."></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" id="addPersonBtn">📸 Saqlash + Yuzni olish</button>
+        </div>
+        <div id="modelLoadStatus2" class="model-loader" style="margin-top:12px;"></div>
+        <p style="font-size:0.72rem; color:var(--text3); margin-top:10px;">💡 Kamera ochilganda boshingizni sekin chap va o'ngga burang — jonlilik tekshiruvi o'tgach, yuz avtomatik saqlanadi.</p>
+      </div>
+    </div>
+
+    <div class="page-content" id="page-percent">
+      <div class="card">
+        <div class="card-title">🔢 O'quvchilar davomat foizi</div>
+        <p style="font-size:0.78rem; color:var(--text2); margin-bottom:14px;">Foiz = o'quvchi kelgan kunlar / davomat yozilgan umumiy o'quv kunlari × 100</p>
+        <div class="form-grid" style="grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));">
+          <div class="form-group">
+            <label>Sinf</label>
+            <select id="pctClassSelect"><option value="">Barchasi</option></select>
+          </div>
+          <div class="form-group">
+            <label>Paralel</label>
+            <select id="pctParallelSelect"><option value="">Barchasi</option></select>
+          </div>
+        </div>
+        <div class="btn-row" style="margin-top:0;">
+          <button class="btn btn-secondary" id="exportPctBtn">📎 Excel eksport</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📊 Foiz jadvali</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>#</th><th>F.I.O</th><th>Sinf</th><th>Paralel</th><th>Kunlar (jami)</th><th>Kelgan</th><th>Foiz</th></tr></thead>
+            <tbody id="pctBody"><tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text2);">Ma'lumot yo'q</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="modal-overlay" id="captureModal" style="display:none;">
+  <div class="modal-box">
+    <h3>📸 Jonlilik tekshiruvi</h3>
+    <video id="capVideo" autoplay muted playsinline></video>
+    <div class="progress-track"><div class="progress-fill" id="lvProgress" style="width:0%"></div></div>
+    <div class="liveness-hint" id="lvHint">🔄 Boshingizni chapga va o'ngga sekin burang</div>
+    <button class="btn btn-danger" id="cancelCapBtn">Bekor qilish</button>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+const STORAGE_KEY_PEOPLE = "eduface_people_v3";
+const STORAGE_KEY_ATTEND = "eduface_attend_v3";
+const ATTEND_CUTOFF_MIN  = 480; // 08:00
+const TZ_OFFSET_MS = 5 * 60 * 60 * 1000; // O'zbekiston UTC+5
+
+let people = [];
+let attendances = [];
+let faceapiReady = false;
+let modelsLoading = false;
+let recognitionRunning = false;
+let globalVideo = null;
+let overlayCtx = null;
+let pendingMark = new Map();
+let adminOk = false;
+let notifications = [];
+let donutChart, lineChart, teacherChart, studentChart;
+
+// O'zbekiston (UTC+5) vaqtini hisoblash uchun yordamchi
+function toUzDate(ts) {
+  let d = ts ? new Date(ts) : new Date();
+  return new Date(d.getTime() + TZ_OFFSET_MS);
+}
+
+async function savePeople() {
+  let store = people.map(p => ({ ...p, descriptor: p.descriptor ? Array.from(p.descriptor) : null }));
+  localStorage.setItem(STORAGE_KEY_PEOPLE, JSON.stringify(store));
+}
+async function loadPeople() {
+  let raw = localStorage.getItem(STORAGE_KEY_PEOPLE);
+  let data = raw ? JSON.parse(raw) : [];
+  people = (data || []).map(p => ({ ...p, descriptor: p.descriptor ? new Float32Array(p.descriptor) : null }));
+  renderPeopleTable(); updateStudentFilters(); updatePctFilters();
+}
+async function saveAttendance() {
+  localStorage.setItem(STORAGE_KEY_ATTEND, JSON.stringify(attendances));
+}
+async function loadAttendance() {
+  let raw = localStorage.getItem(STORAGE_KEY_ATTEND);
+  attendances = raw ? JSON.parse(raw) : [];
+}
+
+function getToday() {
+  let uz = toUzDate();
+  return `${uz.getUTCFullYear()}-${String(uz.getUTCMonth()+1).padStart(2,'0')}-${String(uz.getUTCDate()).padStart(2,'0')}`;
+}
+
+function fmtTime(ts) {
+  let uz = toUzDate(ts);
+  return `${String(uz.getUTCHours()).padStart(2,'0')}:${String(uz.getUTCMinutes()).padStart(2,'0')}`;
+}
+
+// Berilgan sana uchun "YYYY-MM-DD" (UTC+5 bo'yicha)
+function dateKeyFromUz(uz) {
+  return `${uz.getUTCFullYear()}-${String(uz.getUTCMonth()+1).padStart(2,'0')}-${String(uz.getUTCDate()).padStart(2,'0')}`;
+}
+
+function getTodayMap() {
+  let today = getToday(), map = new Map();
+  attendances.filter(a => a.date === today).forEach(a => map.set(a.personId, a));
+  return map;
+}
+
+function showToast(msg, type = 'success', duration = 3500) {
+  let el = document.createElement('div');
+  el.className = `toast ${type}`;
+  let icons = { success:'✅', warning:'⚠️', error:'❌' };
+  el.innerHTML = `<span>${icons[type]||'ℹ️'}</span> <span>${msg}</span>`;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => { el.style.animation = 'toastOut 0.3s forwards'; setTimeout(() => el.remove(), 300); }, duration);
+}
+
+function addNotification(msg, icon = '🔔') {
+  let timeStr = fmtTime(Date.now());
+  let notif = { id: Date.now(), msg, icon, time: timeStr };
+  notifications.unshift(notif);
+  if (notifications.length > 30) notifications.pop();
+  renderNotifications();
+  document.getElementById('notifDot').style.display = 'block';
+}
+
+function renderNotifications() {
+  let list = document.getElementById('notifList');
+  if (!notifications.length) { list.innerHTML = '<div class="notif-empty">Bildirishnomalar yo\'q</div>'; return; }
+  list.innerHTML = notifications.map(n => `
+    <div class="notif-item">
+      <div class="notif-item-icon">${n.icon}</div>
+      <div><div class="notif-item-text">${n.msg}</div><div class="notif-item-time">${n.time}</div></div>
+    </div>`).join('');
+}
+
+function setupAuth() {
+  let inp = document.getElementById('adminPwd');
+  let doLogin = () => {
+    if (inp.value === '2222') {
+      adminOk = true;
+      document.getElementById('authWrap').style.display = 'none';
+      document.getElementById('appLayout').style.display = 'flex';
+      initApp();
+    } else {
+      document.getElementById('pwdError').textContent = '❌ Parol noto\'g\'ri';
+      inp.value = '';
+      setTimeout(() => document.getElementById('pwdError').textContent = '', 2000);
+    }
+  };
+  document.getElementById('checkAdminPwd').onclick = doLogin;
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+}
+
+function setupNav() {
+  document.querySelectorAll('.nav-item[data-page]').forEach(btn => {
+    btn.onclick = () => navigateTo(btn.dataset.page);
+  });
+  let burger = document.getElementById('burgerBtn');
+  let overlay = document.getElementById('sidebarOverlay');
+  let sidebar = document.getElementById('sidebar');
+  burger.onclick = () => { sidebar.classList.toggle('open'); overlay.classList.toggle('open'); };
+  overlay.onclick = () => { sidebar.classList.remove('open'); overlay.classList.remove('open'); };
+
+  document.getElementById('notifBell').onclick = () => {
+    document.getElementById('notifPanel').classList.toggle('open');
+    document.getElementById('notifDot').style.display = 'none';
+  };
+  document.getElementById('clearNotifs').onclick = () => { notifications = []; renderNotifications(); };
+
+  document.addEventListener('click', e => {
+    let panel = document.getElementById('notifPanel');
+    let bell = document.getElementById('notifBell');
+    if (!panel.contains(e.target) && !bell.contains(e.target)) panel.classList.remove('open');
+  });
+}
+
+const pageTitles = { dashboard:'📊 Bosh sahifa', camera:'🎥 Kamera & Davomat', report:'📈 Hisobot & Grafik', persons:'👥 Shaxslar ro\'yxati', add:'➕ Yangi qo\'shish', percent:'🔢 Davomat foizi' };
+function navigateTo(page) {
+  document.querySelectorAll('.page-content').forEach(p => p.classList.remove('active'));
+  document.getElementById(`page-${page}`).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.page === page));
+  document.getElementById('pageTitle').textContent = pageTitles[page] || '';
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebarOverlay').classList.remove('open');
+  if (page === 'camera' && (!globalVideo || !globalVideo.srcObject)) initCamera();
+  if (page === 'report') renderReport();
+  if (page === 'dashboard') updateDashboard();
+  if (page === 'percent') renderPercentageReport();
+}
+
+async function loadModels() {
+  if (faceapiReady || modelsLoading) return;
+  modelsLoading = true;
+  let els = [document.getElementById('modelLoadStatus'), document.getElementById('modelLoadStatus2')];
+  els.forEach(el => { if(el) el.innerHTML = '<div class="spinner"></div> Yuz modellari yuklanmoqda...'; });
+  const URL = "https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.12/model/";
+  try {
+    await faceapi.nets.ssdMobilenetv1.loadFromUri(URL);
+    await faceapi.nets.faceLandmark68Net.loadFromUri(URL);
+    await faceapi.nets.faceRecognitionNet.loadFromUri(URL);
+    faceapiReady = true;
+    els.forEach(el => { if(el) el.innerHTML = '✅ Modellar tayyor'; });
+    showToast('Yuz tanish modellari tayyor', 'success');
+  } catch(e) {
+    console.error('Model yuklash xatosi:', e);
+    els.forEach(el => { if(el) el.innerHTML = '❌ Yuklashda xatolik. Internetni tekshiring.'; });
+    showToast('Yuz modellari yuklanmadi. Qayta yuklang', 'error');
+  } finally {
+    modelsLoading = false;
+  }
+}
+
+function getHeadYaw(landmarks) {
+  try {
+    let le = landmarks.getLeftEye(), re = landmarks.getRightEye(), no = landmarks.getNose();
+    if (!le.length || !re.length || !no.length) return 0;
+    let eyeX = (le[0].x + re[re.length-1].x) / 2;
+    let yaw = (no[no.length-1].x - eyeX) / 10;
+    return Math.min(Math.max(yaw, -0.8), 0.8);
+  } catch(e) { return 0; }
+}
+
+function captureFaceWithLiveness(onSuccess, onClose) {
+  if (!faceapiReady) { showToast('Modellar hali tayyor emas', 'warning'); if(onClose) onClose(); return; }
+  let modal = document.getElementById('captureModal');
+  modal.style.display = 'flex';
+  let vid = document.getElementById('capVideo'), stream = null;
+  let yawHistory = [], descriptorSamples = [], iv = null;
+
+  navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" } })
+    .then(s => { stream = s; vid.srcObject = s; vid.play(); startLiveness(); })
+    .catch(e => { showToast('Kamera ochilmadi: ' + e.message, 'error'); closeM(); if(onClose) onClose(); });
+
+  function startLiveness() {
+    iv = setInterval(async () => {
+      if (!vid.videoWidth) return;
+      let det = await faceapi.detectSingleFace(vid, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.55 }))
+                      .withFaceLandmarks().withFaceDescriptor().catch(() => null);
+      if (det && det.descriptor) {
+        descriptorSamples.push(det.descriptor);
+        if (descriptorSamples.length > 8) descriptorSamples.shift();
+        let yaw = getHeadYaw(det.landmarks);
+        yawHistory.push(yaw);
+        if (yawHistory.length > 30) yawHistory.shift();
+        let prog = Math.min(100, (yawHistory.length / 20) * 100);
+        document.getElementById('lvProgress').style.width = prog + '%';
+        if (yawHistory.length >= 16) {
+          let range = Math.max(...yawHistory) - Math.min(...yawHistory);
+          if (range > 0.08 || yawHistory.length >= 26) {
+            clearInterval(iv);
+            document.getElementById('lvHint').innerHTML = '✅ Jonlilik tasdiqlandi! Saqlanmoqda...';
+            let avg = new Float32Array(128);
+            descriptorSamples.forEach(ds => { for(let i=0;i<128;i++) avg[i] += ds[i]; });
+            for(let i=0;i<128;i++) avg[i] /= descriptorSamples.length;
+            setTimeout(() => { closeM(); if(onSuccess) onSuccess(avg); }, 600);
+            return;
+          }
+        }
+        document.getElementById('lvHint').innerHTML = `🔄 Bosh harakati: ${Math.round(prog)}%`;
+      } else {
+        document.getElementById('lvHint').innerHTML = '⚠️ Yuz aniqlanmadi, kameraga qarang';
+        document.getElementById('lvProgress').style.width = '0%';
+      }
+    }, 160);
+  }
+
+  function closeM() {
+    clearInterval(iv);
+    if(stream) stream.getTracks().forEach(t => t.stop());
+    modal.style.display = 'none';
+    document.getElementById('lvProgress').style.width = '0%';
+    document.getElementById('lvHint').textContent = '🔄 Boshingizni chapga va o\'ngga sekin burang';
+  }
+  document.getElementById('cancelCapBtn').onclick = () => { closeM(); if(onClose) onClose(); };
+}
+
+function renderPeopleTable() {
+  let tbody = document.getElementById('personsListBody');
+  if (!people.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:var(--text2);">Hech kim qo\'shilmagan</td></tr>';
+    return;
+  }
+  tbody.innerHTML = people.map((p, i) => {
+    let roleLabel = p.role === 'teacher' ? '<span class="badge badge-purple">O\'qituvchi</span>' : '<span class="badge badge-success">O\'quvchi</span>';
+    let spec = p.role === 'teacher' ? (p.subject||'-') : (p.classGrade ? p.classGrade+'-sinf' : '-');
+    let par = (p.role === 'student' && p.parallel) ? p.parallel : '—';
+    let faceBadge = (p.descriptor && p.descriptor.length > 0)
+      ? '<span class="badge badge-success">✅ Bor</span>'
+      : '<span class="badge badge-warning">⚠️ Yo\'q</span>';
+    return `<tr>
+      <td><span style="color:var(--text3); font-size:0.72rem;">${i+1}</span></td>
+      <td><div style="font-weight:600;">${p.firstName} ${p.lastName}</div><div style="font-size:0.7rem; color:var(--text2);">${p.fatherName||''}</div></td>
+      <td>${roleLabel}</td><td>${spec}</td><td>${par}</td><td>${faceBadge}</td>
+      <td>
+        <button class="btn btn-sm btn-secondary renewBtn" data-id="${p.id}" style="margin-right:6px;">🔄</button>
+        <button class="btn btn-sm btn-danger delBtn" data-id="${p.id}">🗑</button>
+      </td>
+    </tr>`;
+  }).join('');
+  document.querySelectorAll('.renewBtn').forEach(b => b.onclick = () => renewFace(parseInt(b.dataset.id)));
+  document.querySelectorAll('.delBtn').forEach(b => b.onclick = () => deletePerson(parseInt(b.dataset.id)));
+}
+
+async function deletePerson(id) {
+  if (!confirm("Bu shaxs o'chirilsinmi?")) return;
+  people = people.filter(p => p.id !== id);
+  await savePeople();
+  renderPeopleTable(); updateStudentFilters(); updatePctFilters(); updateAttendanceUI(); updateDashboard(); updateLiveList();
+  showToast("Shaxs o'chirildi", 'warning');
+}
+
+function renewFace(id) {
+  let p = people.find(x => x.id === id); if (!p) return;
+  captureFaceWithLiveness(async desc => {
+    p.descriptor = desc;
+    await savePeople();
+    renderPeopleTable();
+    showToast(`${p.firstName} ${p.lastName} yuzi yangilandi`, 'success');
+  }, () => {});
+}
+
+function toggleRoleFields() {
+  let role = document.getElementById('roleSelect').value;
+  document.getElementById('subjectGroup').style.display    = role === 'teacher' ? '' : 'none';
+  document.getElementById('classGradeGroup').style.display = role === 'student' ? '' : 'none';
+  document.getElementById('parallelGroup').style.display   = role === 'student' ? '' : 'none';
+}
+
+async function addPerson() {
+  let fn = document.getElementById('firstName').value.trim();
+  let ln = document.getElementById('lastName').value.trim();
+  let fa = document.getElementById('fatherName').value.trim();
+  let role = document.getElementById('roleSelect').value;
+  if (!fn || !ln) { showToast('Ism va familiya majburiy', 'error'); return; }
+  let extra = {};
+  if (role === 'teacher') {
+    let subj = document.getElementById('subject').value.trim();
+    if (!subj) { showToast('Fan nomi kerak', 'error'); return; }
+    extra.subject = subj;
+  } else {
+    let cg = document.getElementById('classGrade').value.trim();
+    let pr = document.getElementById('parallel').value.trim();
+    if (!cg || !pr) { showToast('Sinf va paralel kerak', 'error'); return; }
+    extra.classGrade = cg; extra.parallel = pr;
+  }
+  captureFaceWithLiveness(async desc => {
+    let person = { id: Date.now(), firstName: fn, lastName: ln, fatherName: fa, role, ...extra, descriptor: desc };
+    people.push(person);
+    await savePeople();
+    renderPeopleTable(); updateStudentFilters(); updateDashboard(); updatePctFilters();
+    ['firstName','lastName','fatherName','subject','classGrade','parallel'].forEach(id => { let el=document.getElementById(id); if(el) el.value=''; });
+    showToast(`${fn} ${ln} qo'shildi va yuz saqlandi`, 'success');
+    addNotification(`${fn} ${ln} tizimga qo'shildi`, '👤');
+  }, () => {});
+}
+
+function updateStudentFilters() {
+  let cs = document.getElementById('classFilterSelect');
+  let classes = [...new Set(people.filter(p=>p.role==='student'&&p.classGrade).map(p=>p.classGrade))].sort();
+  let oldC = cs.value;
+  cs.innerHTML = '<option value="">Barchasi</option>' + classes.map(c=>`<option value="${c}">${c}-sinf</option>`).join('');
+  if (classes.includes(oldC)) cs.value = oldC;
+  updateParallels();
+}
+function updateParallels() {
+  let selC = document.getElementById('classFilterSelect').value;
+  let ps = document.getElementById('parallelFilterSelect');
+  let parallels = selC ? [...new Set(people.filter(p=>p.role==='student'&&p.classGrade===selC&&p.parallel).map(p=>p.parallel))].sort() : [];
+  let oldP = ps.value;
+  ps.innerHTML = '<option value="">Barchasi</option>' + parallels.map(p=>`<option value="${p}">${p}</option>`).join('');
+  if (parallels.includes(oldP)) ps.value = oldP;
+}
+
+async function markAttendance(personId, timestamp) {
+  let today = getToday();
+  if (attendances.some(a => a.personId === personId && a.date === today)) return false;
+  if (pendingMark.has(personId)) return false;
+  pendingMark.set(personId, true);
+  
+  let uz = toUzDate(timestamp);
+  let mins = uz.getUTCHours() * 60 + uz.getUTCMinutes();
+  let status = mins <= ATTEND_CUTOFF_MIN ? 'ontime' : 'late';
+  
+  attendances.push({ id: Date.now() + Math.random(), personId, date: today, timestamp, status });
+  await saveAttendance();
+  setTimeout(() => pendingMark.delete(personId), 5000);
+
+  let person = people.find(p => p.id === personId);
+  if (person) {
+    let roleT = person.role === 'teacher' ? 'O\'qituvchi' : 'O\'quvchi';
+    if (status === 'late') {
+      addNotification(`⚠️ ${person.firstName} ${person.lastName} (${roleT}) kech keldi — ${fmtTime(timestamp)}`, '⏰');
+      showToast(`${person.firstName} ${person.lastName} kech keldi`, 'warning');
+    } else {
+      showToast(`${person.firstName} ${person.lastName} vaqtida keldi`, 'success');
+    }
+  }
+  return true;
+}
+
+async function resetTodayAttendance() {
+  attendances = attendances.filter(a => a.date !== getToday());
+  pendingMark.clear();
+  await saveAttendance();
+  updateAttendanceUI(); 
+  updateLiveList();
+  updateDashboard();
+  showToast('Bugungi davomat tozalandi', 'warning');
+}
+
+function updateAttendanceUI() {
+  let map = getTodayMap();
+  let tbody = document.getElementById('attendanceBody');
+  if (!people.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--text2);">Ro\'yxat bo\'sh</td></tr>'; return; }
+  tbody.innerHTML = people.map(p => {
+    let rec = map.get(p.id);
+    let full = `${p.firstName} ${p.lastName}`;
+    let roleLabel = p.role === 'teacher' ? '<span class="badge badge-purple">O\'qituvchi</span>' : '<span class="badge badge-success">O\'quvchi</span>';
+    let spec = p.role === 'teacher' ? (p.subject||'-') : (p.classGrade ? p.classGrade+'-'+(p.parallel||'') : '-');
+    if (rec) {
+      let t = fmtTime(rec.timestamp);
+      let badge = rec.status === 'ontime' ? '<span class="badge badge-success">✅ Vaqtida</span>' : '<span class="badge badge-warning">⏰ Kech</span>';
+      return `<tr><td><div style="font-weight:600;">${full}</div></td><td>${roleLabel}</td><td>${spec}</td><td style="font-family:monospace;">${t}</td><td>${badge}</td></tr>`;
+    }
+    return `<tr><td><div style="font-weight:600;">${full}</div></td><td>${roleLabel}</td><td>${spec}</td><td>—</td><td><span class="badge badge-danger">❌ Kelmagan</span></td></tr>`;
+  }).join('');
+}
+
+function updateLiveList() {
+  let map = getTodayMap();
+  let list = document.getElementById('liveList');
+  let arrived = [...map.values()].sort((a,b) => b.timestamp - a.timestamp);
+  if (!arrived.length) { 
+    list.innerHTML = '<div class="empty-state" style="padding:20px;"><div class="empty-icon" style="font-size:1.5rem;">⏳</div><p>Hali hech kim aniqlanmadi</p></div>'; 
+    return; 
+  }
+  list.innerHTML = arrived.map(rec => {
+    let p = people.find(x => x.id === rec.personId);
+    if (!p) return '';
+    let cls = p.role === 'teacher' ? 'teacher' : 'student';
+    let icon = p.role === 'teacher' ? '👩‍🏫' : '📚';
+    let spec = p.role === 'teacher' ? (p.subject||'') : (p.classGrade ? p.classGrade+'-'+(p.parallel||'') : '');
+    let badge = rec.status === 'ontime' ? '<span class="badge badge-success">✅</span>' : '<span class="badge badge-warning">⏰</span>';
+    return `<div class="live-item">
+      <div class="live-avatar ${cls}">${icon}</div>
+      <div><div class="live-name">${p.firstName} ${p.lastName}</div><div class="live-meta">${spec}</div></div>
+      <div class="live-time">${fmtTime(rec.timestamp)}<br>${badge}</div>
+    </div>`;
+  }).join('');
+}
+
+async function drawAndRecognize() {
+  if (!faceapiReady || !globalVideo || !globalVideo.videoWidth || !overlayCtx) {
+    requestAnimationFrame(drawAndRecognize); return;
+  }
+  let canvas = document.getElementById('overlayCanvas');
+  if (canvas.width !== globalVideo.videoWidth)  canvas.width  = globalVideo.videoWidth;
+  if (canvas.height !== globalVideo.videoHeight) canvas.height = globalVideo.videoHeight;
+  overlayCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const THRESHOLD = 0.38;
+  let dets = [];
+  try {
+    dets = await faceapi.detectAllFaces(globalVideo, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.55 }))
+                .withFaceLandmarks().withFaceDescriptors();
+  } catch(e) { 
+    console.error('Detection error:', e);
+    requestAnimationFrame(drawAndRecognize); 
+    return; 
+  }
+
+  for (let det of dets) {
+    let { x, y, width: w, height: h } = det.detection.box;
+    let best = null, bestD = THRESHOLD;
+    for (let p of people) {
+      if (p.descriptor) {
+        let d = faceapi.euclideanDistance(det.descriptor, p.descriptor);
+        if (d < bestD) { bestD = d; best = p; }
+      }
+    }
+
+    if (best) {
+      overlayCtx.strokeStyle = '#00c896'; overlayCtx.lineWidth = 2.5;
+      overlayCtx.strokeRect(x, y, w, h);
+      let cL = Math.min(w, h) * 0.18;
+      overlayCtx.strokeStyle = '#00ffbb'; overlayCtx.lineWidth = 4;
+      [[x,y+cL,x,y,x+cL,y],[x+w-cL,y,x+w,y,x+w,y+cL],[x,y+h-cL,x,y+h,x+cL,y+h],[x+w-cL,y+h,x+w,y+h,x+w,y+h-cL]].forEach(([x1,y1,x2,y2,x3,y3])=>{
+        overlayCtx.beginPath(); overlayCtx.moveTo(x1,y1); overlayCtx.lineTo(x2,y2); overlayCtx.lineTo(x3,y3); overlayCtx.stroke();
+      });
+      let label = `${best.firstName} ${best.lastName}`;
+      let extra = best.role === 'teacher' ? (best.subject||'') : (best.classGrade ? best.classGrade+'-'+(best.parallel||'') : '');
+      let fullLabel = extra ? `${label} (${extra})` : label;
+      overlayCtx.font = "bold 13px Inter, sans-serif";
+      let tw = overlayCtx.measureText(fullLabel).width;
+      overlayCtx.fillStyle = "rgba(0,0,0,0.7)";
+      overlayCtx.fillRect(x, y + h + 2, tw + 16, 24);
+      overlayCtx.fillStyle = "#00c896";
+      overlayCtx.fillText(fullLabel, x + 8, y + h + 18);
+
+      let todayMap = getTodayMap();
+      if (!todayMap.has(best.id) && !pendingMark.has(best.id)) {
+        let marked = await markAttendance(best.id, Date.now());
+        if (marked) {
+          updateAttendanceUI(); updateLiveList(); updateDashboard();
+          let el = document.getElementById('liveStatus');
+          if (el) el.textContent = `${best.firstName} ${best.lastName} — qayd etildi`;
+        }
+      }
+    } else {
+      overlayCtx.strokeStyle = '#f85149'; overlayCtx.lineWidth = 2;
+      overlayCtx.strokeRect(x, y, w, h);
+      overlayCtx.font = "bold 12px Inter, sans-serif";
+      let ul = "Noma'lum", uw = overlayCtx.measureText(ul).width;
+      overlayCtx.fillStyle = "rgba(0,0,0,0.6)";
+      overlayCtx.fillRect(x, y+h+2, uw+16, 22);
+      overlayCtx.fillStyle = "#f85149";
+      overlayCtx.fillText(ul, x+8, y+h+17);
+    }
+  }
+  requestAnimationFrame(drawAndRecognize);
+}
+
+async function initCamera() {
+  let video = document.getElementById('webcamVideo');
+  globalVideo = video;
+  overlayCtx = document.getElementById('overlayCanvas').getContext('2d');
+  let pulse = document.getElementById('camPulse');
+  let statusDiv = document.getElementById('liveStatus');
+  try {
+    let stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" } });
+    video.srcObject = stream;
+    await video.play();
+    pulse.style.background = 'var(--warning)';
+    if (statusDiv) statusDiv.textContent = "Modellar tekshirilmoqda...";
+    await loadModels();
+    if (!recognitionRunning) { recognitionRunning = true; drawAndRecognize(); }
+    pulse.style.background = 'var(--success)';
+    if (statusDiv) statusDiv.textContent = "Kamera tayyor — bir nechta yuz taniladi";
+    showToast('Kamera ishga tushdi', 'success');
+  } catch(e) {
+    pulse.style.background = 'var(--danger)';
+    if (statusDiv) statusDiv.textContent = "Kamera ruxsati kerak";
+    showToast('Kamera ruxsati kerak', 'error');
+  }
+}
+
+function getFilteredReport() {
+  let type  = document.getElementById('reportTypeSelect').value;
+  let role  = document.getElementById('roleFilterSelect').value;
+  let sinf  = document.getElementById('classFilterSelect').value;
+  let paral = document.getElementById('parallelFilterSelect').value;
+  let map   = getTodayMap();
+  let list  = [...people];
+  if (role !== 'all') list = list.filter(p => p.role === role);
+  if (sinf)           list = list.filter(p => p.role === 'student' && p.classGrade === sinf);
+  if (paral)          list = list.filter(p => p.parallel === paral);
+  return list.map(p => {
+    let rec = map.get(p.id);
+    let arrive = rec ? fmtTime(rec.timestamp) : '-';
+    let status = rec ? (rec.status === 'ontime' ? 'Vaqtida kelgan' : 'Kech kelgan') : 'Kelmagan';
+    let statusKey = rec ? rec.status : 'absent';
+    if (type === 'absent' && rec) return null;
+    if (type === 'late' && (!rec || rec.status !== 'late')) return null;
+    if (type === 'ontime' && (!rec || rec.status !== 'ontime')) return null;
+    return { ...p, status, statusKey, arrive };
+  }).filter(Boolean);
+}
+
+function renderReport() {
+  let list = getFilteredReport();
+  let tbody = document.getElementById('reportBody');
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text2);">Ma\'lumot yo\'q</td></tr>'; renderReportCharts(); return; }
+  tbody.innerHTML = list.map(p => {
+    let spec = p.role === 'teacher' ? (p.subject||'-') : (p.classGrade||'-');
+    let par  = p.role === 'student' && p.parallel ? p.parallel : '—';
+    let roleLabel = p.role === 'teacher' ? '<span class="badge badge-purple">O\'qituvchi</span>' : '<span class="badge badge-success">O\'quvchi</span>';
+    let statusBadge = p.statusKey === 'ontime' ? '<span class="badge badge-success">✅ Vaqtida</span>' :
+                      p.statusKey === 'late'   ? '<span class="badge badge-warning">⏰ Kech</span>' :
+                                                 '<span class="badge badge-danger">❌ Kelmagan</span>';
+    return `<tr><td><div style="font-weight:600;">${p.firstName} ${p.lastName}</div></td><td>${roleLabel}</td><td>${spec}</td><td>${par}</td><td>${statusBadge}</td><td style="font-family:monospace;">${p.arrive}</td></tr>`;
+  }).join('');
+  renderReportCharts();
+}
+
+function renderReportCharts() {
+  let map = getTodayMap();
+  let teachers = people.filter(p => p.role === 'teacher');
+  let tOntime = teachers.filter(p => { let r=map.get(p.id); return r && r.status==='ontime'; }).length;
+  let tLate   = teachers.filter(p => { let r=map.get(p.id); return r && r.status==='late'; }).length;
+  let tAbsent = teachers.length - tOntime - tLate;
+  if (teacherChart) teacherChart.destroy();
+  let tc = document.getElementById('teacherChart').getContext('2d');
+  teacherChart = new Chart(tc, {
+    type: 'doughnut',
+    data: { labels:['Vaqtida','Kech','Kelmagan'], datasets:[{ data:[tOntime, tLate, tAbsent], backgroundColor:['#3fb950','#d29922','#f85149'], borderWidth:0 }] },
+    options: { responsive:true, plugins:{ legend:{ labels:{ color:'#9aa7bd', font:{size:11} } } } }
+  });
+
+  let classes = [...new Set(people.filter(p=>p.role==='student'&&p.classGrade).map(p=>p.classGrade))].sort();
+  let classData = classes.map(c => {
+    let classStudents = people.filter(p => p.role==='student' && p.classGrade===c);
+    let present = classStudents.filter(p => map.has(p.id)).length;
+    return { class: c, present, total: classStudents.length };
+  });
+  if (studentChart) studentChart.destroy();
+  let sc = document.getElementById('studentChart').getContext('2d');
+  studentChart = new Chart(sc, {
+    type: 'bar',
+    data: {
+      labels: classData.map(d => d.class+'-sinf'),
+      datasets: [
+        { label:'Kelgan', data: classData.map(d=>d.present), backgroundColor:'rgba(0,200,150,0.7)', borderRadius:6 },
+        { label:'Kelmagan', data: classData.map(d=>d.total-d.present), backgroundColor:'rgba(248,81,73,0.5)', borderRadius:6 }
+      ]
+    },
+    options: { responsive:true, scales:{ x:{ stacked:true, ticks:{color:'#9aa7bd'}, grid:{color:'rgba(255,255,255,0.06)'} }, y:{ stacked:true, ticks:{color:'#9aa7bd'}, grid:{color:'rgba(255,255,255,0.06)'} } }, plugins:{ legend:{ labels:{color:'#9aa7bd'} } } }
+  });
+}
+
+function updateDashboard() {
+  let map = getTodayMap();
+  let ontime = 0, late = 0, absent = 0;
+  people.forEach(p => {
+    let r = map.get(p.id);
+    if (!r) absent++;
+    else if (r.status === 'ontime') ontime++;
+    else late++;
+  });
+  let total = people.length;
+  document.getElementById('s-ontime').textContent = ontime;
+  document.getElementById('s-late').textContent   = late;
+  document.getElementById('s-absent').textContent  = absent;
+  document.getElementById('s-total').textContent   = total;
+  document.getElementById('s-ontime-pct').textContent = total ? `${Math.round(ontime/total*100)}% ulush` : 'Bugun';
+  document.getElementById('s-late-pct').textContent   = total ? `${Math.round(late/total*100)}% ulush` : 'Bugun';
+  document.getElementById('s-absent-pct').textContent = total ? `${Math.round(absent/total*100)}% ulush` : 'Bugun';
+
+  if (donutChart) donutChart.destroy();
+  let dc = document.getElementById('donutChart').getContext('2d');
+  donutChart = new Chart(dc, {
+    type: 'doughnut',
+    data: {
+      labels: ['Vaqtida', 'Kech', 'Kelmagan'],
+      datasets: [{ data: [ontime, late, absent], backgroundColor: ['#3fb950','#d29922','#f85149'], borderWidth: 0, hoverOffset: 6 }]
+    },
+    options: { responsive:true, cutout:'70%', plugins:{ legend:{ position:'bottom', labels:{ color:'#9aa7bd', padding:16, font:{size:12} } } } }
+  });
+
+  // Haftalik dinamika — Dushanbadan boshlab, UTC+5 bo'yicha bugungi kun
+  let days = ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sha', 'Ya'];
+  let uzNow = toUzDate();
+  let todayIdx = (uzNow.getUTCDay() + 6) % 7; // Dushanba=0, Yakshanba=6
+  let weekData = days.map((d, i) => {
+    if (i > todayIdx) return null; // kelajak kunlari ko'rsatilmaydi
+    let dayUz = new Date(uzNow.getTime() - (todayIdx - i) * 24 * 60 * 60 * 1000);
+    let dayKey = dateKeyFromUz(dayUz);
+    if (i === todayIdx) return ontime + late; // bugun — joriy hisob
+    // o'tgan kunlar uchun real saqlangan davomat soni
+    return attendances.filter(a => a.date === dayKey).length;
+  });
+
+  if (lineChart) lineChart.destroy();
+  let lc = document.getElementById('lineChart').getContext('2d');
+  lineChart = new Chart(lc, {
+    type: 'line',
+    data: {
+      labels: days,
+      datasets: [{ label:'Kelganlar', data: weekData, borderColor:'#00c896', backgroundColor:'rgba(0,200,150,0.08)', tension:0.4, fill:true, pointBackgroundColor:'#00c896', pointRadius:5, spanGaps: true }]
+    },
+    options: { responsive:true, scales:{ x:{ ticks:{color:'#9aa7bd'}, grid:{color:'rgba(255,255,255,0.06)'} }, y:{ ticks:{color:'#9aa7bd'}, grid:{color:'rgba(255,255,255,0.06)'}, beginAtZero:true } }, plugins:{ legend:{ labels:{ color:'#9aa7bd' } } } }
+  });
+
+  let recentDiv = document.getElementById('recentActivity');
+  let sorted = [...map.values()].sort((a,b) => b.timestamp - a.timestamp).slice(0, 8);
+  if (!sorted.length) { recentDiv.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><p>Bugun hali hech kim kelmadi</p></div>'; return; }
+  recentDiv.innerHTML = `<div style="display:flex; flex-direction:column; gap:10px;">` + sorted.map(rec => {
+    let p = people.find(x => x.id === rec.personId);
+    if (!p) return '';
+    let icon = p.role === 'teacher' ? '👩‍🏫' : '📚';
+    let badge = rec.status === 'ontime' ? '<span class="badge badge-success">✅ Vaqtida</span>' : '<span class="badge badge-warning">⏰ Kech</span>';
+    return `<div style="display:flex; align-items:center; gap:12px; padding:12px 14px; background:var(--surface2); border-radius:12px; border:1px solid var(--border); backdrop-filter:blur(10px);">
+      <span style="font-size:1.2rem;">${icon}</span>
+      <div style="flex:1;"><div style="font-weight:600; font-size:0.85rem;">${p.firstName} ${p.lastName}</div><div style="font-size:0.7rem; color:var(--text2);">${fmtTime(rec.timestamp)}</div></div>
+      ${badge}
+    </div>`;
+  }).join('') + `</div>`;
+}
+
+function exportReport() {
+  let list = getFilteredReport();
+  if (!list.length) { showToast('Hisobot bo\'sh', 'warning'); return; }
+  let data = list.map(p => ({
+    "Ism": p.firstName, "Familiya": p.lastName, "Otasining ismi": p.fatherName||'',
+    "Roli": p.role==='teacher'?"O'qituvchi":"O'quvchi",
+    "Fan/Sinf": p.role==='teacher'?(p.subject||''):(p.classGrade||''),
+    "Paralel": p.role==='student'?(p.parallel||'-'):'-',
+    "Holati": p.status, "Kelish vaqti": p.arrive
+  }));
+  let ws = XLSX.utils.json_to_sheet(data), wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Hisobot");
+  XLSX.writeFile(wb, `hisobot_${getToday()}.xlsx`);
+  showToast('Hisobot eksport qilindi', 'success');
+}
+
+function exportAll() {
+  let data = people.map(p => ({
+    "Ism": p.firstName, "Familiya": p.lastName, "Otasining ismi": p.fatherName||'',
+    "Roli": p.role==='teacher'?"O'qituvchi":"O'quvchi",
+    "Fan/Sinf": p.role==='teacher'?(p.subject||''):(p.classGrade||''),
+    "Paralel": p.role==='student'?(p.parallel||'-'):'-',
+    "Yuz holati": p.descriptor?"Mavjud":"Yo'q"
+  }));
+  let ws = XLSX.utils.json_to_sheet(data), wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Ro'yxat");
+  XLSX.writeFile(wb, `royxat_${getToday()}.xlsx`);
+  showToast('Ro\'yxat eksport qilindi', 'success');
+}
+
+function getPctStudents() {
+  let sinf = document.getElementById('pctClassSelect').value;
+  let paral = document.getElementById('pctParallelSelect').value;
+  let list = people.filter(p => p.role === 'student');
+  if (sinf)  list = list.filter(p => p.classGrade === sinf);
+  if (paral) list = list.filter(p => p.parallel === paral);
+  return list;
+}
+
+function renderPercentageReport() {
+  let tbody = document.getElementById('pctBody');
+  let students = getPctStudents();
+  // Umumiy o'quv kunlari — davomat yozilgan noyob sanalar
+  let allDates = [...new Set(attendances.map(a => a.date))].sort();
+  let totalDays = allDates.length;
+
+  if (!students.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text2);">O\'quvchilar yo\'q</td></tr>';
+    return;
+  }
+  if (!totalDays) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text2);">Hali davomat yozilmagan</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = students.map((p, i) => {
+    let present = attendances.filter(a => a.personId === p.id).length;
+    let pct = totalDays ? Math.round((present / totalDays) * 100) : 0;
+    let badge = pct >= 90 ? '<span class="badge badge-success">✅ Yaxshi</span>'
+              : pct >= 75 ? '<span class="badge badge-warning">⚠️ O\'rtacha</span>'
+              : '<span class="badge badge-danger">❌ Past</span>';
+    let barColor = pct >= 90 ? 'var(--success)' : pct >= 75 ? 'var(--warning)' : 'var(--danger)';
+    return `<tr>
+      <td><span style="color:var(--text3); font-size:0.72rem;">${i+1}</span></td>
+      <td><div style="font-weight:600;">${p.firstName} ${p.lastName}</div><div style="font-size:0.7rem; color:var(--text2);">${p.fatherName||''}</div></td>
+      <td>${p.classGrade||'-'}</td>
+      <td>${p.parallel||'-'}</td>
+      <td style="font-family:monospace;">${totalDays}</td>
+      <td style="font-family:monospace;">${present}</td>
+      <td>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="flex:1; max-width:120px; background:var(--surface3); border-radius:20px; height:8px; overflow:hidden;">
+            <div style="width:${pct}%; height:100%; background:${barColor}; border-radius:20px;"></div>
+          </div>
+          <span style="font-weight:800; min-width:42px;">${pct}%</span>
+          ${badge}
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function updatePctFilters() {
+  let cs = document.getElementById('pctClassSelect');
+  if (!cs) return;
+  let classes = [...new Set(people.filter(p=>p.role==='student'&&p.classGrade).map(p=>p.classGrade))].sort();
+  let oldC = cs.value;
+  cs.innerHTML = '<option value="">Barchasi</option>' + classes.map(c=>`<option value="${c}">${c}-sinf</option>`).join('');
+  if (classes.includes(oldC)) cs.value = oldC;
+  updatePctParallels();
+}
+
+function updatePctParallels() {
+  let selC = document.getElementById('pctClassSelect').value;
+  let ps = document.getElementById('pctParallelSelect');
+  let parallels = selC ? [...new Set(people.filter(p=>p.role==='student'&&p.classGrade===selC&&p.parallel).map(p=>p.parallel))].sort() : [];
+  let oldP = ps.value;
+  ps.innerHTML = '<option value="">Barchasi</option>' + parallels.map(p=>`<option value="${p}">${p}</option>`).join('');
+  if (parallels.includes(oldP)) ps.value = oldP;
+}
+
+function exportPercentage() {
+  let students = getPctStudents();
+  let totalDays = new Set(attendances.map(a => a.date)).size;
+  if (!students.length) { showToast('Ma\'lumot yo\'q', 'warning'); return; }
+  let data = students.map((p, i) => ({
+    "№": i+1, "Ism": p.firstName, "Familiya": p.lastName, "Otasining ismi": p.fatherName||'',
+    "Sinf": p.classGrade||'', "Paralel": p.parallel||'',
+    "Kunlar (jami)": totalDays,
+    "Kelgan": attendances.filter(a => a.personId === p.id).length,
+    "Foiz": totalDays ? Math.round((attendances.filter(a => a.personId === p.id).length / totalDays) * 100) + '%' : '0%'
+  }));
+  let ws = XLSX.utils.json_to_sheet(data), wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Foiz");
+  XLSX.writeFile(wb, `foiz_${getToday()}.xlsx`);
+  showToast('Foiz hisoboti eksport qilindi', 'success');
+}
+
+async function initApp() {
+  let uzNow = toUzDate();
+  let weekDays = ['Yak', 'Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sha'];
+  let months = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyun', 'Iyul', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'];
+  let dateStr = `${weekDays[uzNow.getUTCDay()]}, ${uzNow.getUTCDate()}-${months[uzNow.getUTCMonth()]}, ${uzNow.getUTCFullYear()}`;
+  document.getElementById('topDate').textContent = dateStr;
+
+  await loadPeople();
+  await loadAttendance();
+  await loadModels();
+
+  updateAttendanceUI();
+  updateLiveList();
+  updateDashboard();
+
+  document.getElementById('roleSelect').addEventListener('change', toggleRoleFields);
+  toggleRoleFields();
+  document.getElementById('addPersonBtn').onclick = addPerson;
+  document.getElementById('exportAllExcelBtn').onclick = exportAll;
+  document.getElementById('exportReportBtn').onclick = exportReport;
+  document.getElementById('retryCameraBtn').onclick = initCamera;
+  document.getElementById('resetAttendanceBtn').onclick = () => { if(confirm("Bugungi davomat tozalansinmi?")) resetTodayAttendance(); };
+  document.getElementById('reportTypeSelect').addEventListener('change', renderReport);
+  document.getElementById('roleFilterSelect').addEventListener('change', () => {
+    let isStudent = document.getElementById('roleFilterSelect').value === 'student';
+    document.getElementById('classFilterGroup').style.display   = isStudent ? '' : 'none';
+    document.getElementById('parallelFilterGroup').style.display = isStudent ? '' : 'none';
+    // o'qituvchi yoki "hammasi" tanlanganda sinf/paralel filtrlari tozalanadi
+    if (!isStudent) {
+      document.getElementById('classFilterSelect').value = '';
+      document.getElementById('parallelFilterSelect').value = '';
+      updateParallels();
+    } else {
+      // o'quvchi tanlanganda sinf/paralel ro'yxatini yangilash
+      updateStudentFilters();
+    }
+    renderReport();
+  });
+  document.getElementById('classFilterSelect').addEventListener('change', () => { updateParallels(); renderReport(); });
+  document.getElementById('parallelFilterSelect').addEventListener('change', renderReport);
+
+  updatePctFilters();
+  document.getElementById('pctClassSelect').addEventListener('change', () => { updatePctParallels(); renderPercentageReport(); });
+  document.getElementById('pctParallelSelect').addEventListener('change', renderPercentageReport);
+  document.getElementById('exportPctBtn').onclick = exportPercentage;
+
+  document.getElementById('storageInfo').textContent = '💾 LocalStorage';
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  setupAuth();
+  setupNav();
+});
+</script>
+</body>
+</html>
