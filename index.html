@@ -370,7 +370,7 @@ tbody tr:hover td { background: rgba(255,255,255,0.04); }
       </button>
     </div>
     <div class="sidebar-footer">
-      <div style="font-size:0.72rem; color:var(--text3);" id="storageInfo">💾 LocalStorage</div>
+      <div style="font-size:0.72rem; color:var(--text3);" id="storageInfo">☁️ Server (Base44)</div>
     </div>
   </nav>
 
@@ -625,8 +625,8 @@ tbody tr:hover td { background: rgba(255,255,255,0.04); }
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
-const STORAGE_KEY_PEOPLE = "eduface_people_v3";
-const STORAGE_KEY_ATTEND = "eduface_attend_v3";
+const API_URL = "https://base44.app/api/apps/6a85a07a29a731da588f1907/functions/eduface_api";
+const API_KEY = "eduface-demo-2024";
 const ATTEND_CUTOFF_MIN  = 480; // 08:00
 const TZ_OFFSET_MS = 5 * 60 * 60 * 1000; // O'zbekiston UTC+5
 
@@ -642,28 +642,35 @@ let adminOk = false;
 let notifications = [];
 let donutChart, lineChart, teacherChart, studentChart;
 
+// Server API chaqiruvi
+async function apiCall(action, payload = {}) {
+  const res = await fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "x-eduface-key": API_KEY },
+    body: JSON.stringify({ action, ...payload })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'API xatosi');
+  return data;
+}
+
 // O'zbekiston (UTC+5) vaqtini hisoblash uchun yordamchi
 function toUzDate(ts) {
   let d = ts ? new Date(ts) : new Date();
   return new Date(d.getTime() + TZ_OFFSET_MS);
 }
 
-async function savePeople() {
-  let store = people.map(p => ({ ...p, descriptor: p.descriptor ? Array.from(p.descriptor) : null }));
-  localStorage.setItem(STORAGE_KEY_PEOPLE, JSON.stringify(store));
-}
-async function loadPeople() {
-  let raw = localStorage.getItem(STORAGE_KEY_PEOPLE);
-  let data = raw ? JSON.parse(raw) : [];
-  people = (data || []).map(p => ({ ...p, descriptor: p.descriptor ? new Float32Array(p.descriptor) : null }));
+async function loadApp() {
+  try {
+    const data = await apiCall('list');
+    people = (data.persons || []).map(p => ({ ...p, descriptor: p.descriptor && p.descriptor.length ? new Float32Array(p.descriptor) : null }));
+    attendances = data.attendances || [];
+  } catch(e) {
+    console.error('loadApp error:', e);
+    showToast('Serverdan ma\'lumot yuklanmadi: ' + e.message, 'error');
+    people = []; attendances = [];
+  }
   renderPeopleTable(); updateStudentFilters(); updatePctFilters();
-}
-async function saveAttendance() {
-  localStorage.setItem(STORAGE_KEY_ATTEND, JSON.stringify(attendances));
-}
-async function loadAttendance() {
-  let raw = localStorage.getItem(STORAGE_KEY_ATTEND);
-  attendances = raw ? JSON.parse(raw) : [];
 }
 
 function getToday() {
@@ -816,8 +823,11 @@ function captureFaceWithLiveness(onSuccess, onClose) {
   function startLiveness() {
     iv = setInterval(async () => {
       if (!vid.videoWidth) return;
-      let det = await faceapi.detectSingleFace(vid, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.55 }))
-                      .withFaceLandmarks().withFaceDescriptor().catch(() => null);
+      let det = null;
+      try {
+        det = await faceapi.detectSingleFace(vid, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.55 }))
+                      .withFaceLandmarks().withFaceDescriptor();
+      } catch(e) { det = null; }
       if (det && det.descriptor) {
         descriptorSamples.push(det.descriptor);
         if (descriptorSamples.length > 8) descriptorSamples.shift();
@@ -879,14 +889,15 @@ function renderPeopleTable() {
       </td>
     </tr>`;
   }).join('');
-  document.querySelectorAll('.renewBtn').forEach(b => b.onclick = () => renewFace(parseInt(b.dataset.id)));
-  document.querySelectorAll('.delBtn').forEach(b => b.onclick = () => deletePerson(parseInt(b.dataset.id)));
+  document.querySelectorAll('.renewBtn').forEach(b => b.onclick = () => renewFace(b.dataset.id));
+  document.querySelectorAll('.delBtn').forEach(b => b.onclick = () => deletePerson(b.dataset.id));
 }
 
 async function deletePerson(id) {
   if (!confirm("Bu shaxs o'chirilsinmi?")) return;
+  try { await apiCall('deletePerson', { id }); } catch(e) { showToast('O\'chirishda xatolik: '+e.message, 'error'); return; }
   people = people.filter(p => p.id !== id);
-  await savePeople();
+  attendances = attendances.filter(a => a.personId !== id);
   renderPeopleTable(); updateStudentFilters(); updatePctFilters(); updateAttendanceUI(); updateDashboard(); updateLiveList();
   showToast("Shaxs o'chirildi", 'warning');
 }
@@ -894,8 +905,8 @@ async function deletePerson(id) {
 function renewFace(id) {
   let p = people.find(x => x.id === id); if (!p) return;
   captureFaceWithLiveness(async desc => {
+    try { await apiCall('renewFace', { id, descriptor: Array.from(desc) }); } catch(e) { showToast('Yangilashda xatolik: '+e.message, 'error'); return; }
     p.descriptor = desc;
-    await savePeople();
     renderPeopleTable();
     showToast(`${p.firstName} ${p.lastName} yuzi yangilandi`, 'success');
   }, () => {});
@@ -926,9 +937,10 @@ async function addPerson() {
     extra.classGrade = cg; extra.parallel = pr;
   }
   captureFaceWithLiveness(async desc => {
-    let person = { id: Date.now(), firstName: fn, lastName: ln, fatherName: fa, role, ...extra, descriptor: desc };
-    people.push(person);
-    await savePeople();
+    try {
+      const res = await apiCall('addPerson', { firstName:fn, lastName:ln, fatherName:fa, role, subject: extra.subject||'', classGrade: extra.classGrade||'', parallel: extra.parallel||'', descriptor: Array.from(desc) });
+      people.push({ ...res.person, descriptor: desc });
+    } catch(e) { showToast('Saqlashda xatolik: '+e.message, 'error'); return; }
     renderPeopleTable(); updateStudentFilters(); updateDashboard(); updatePctFilters();
     ['firstName','lastName','fatherName','subject','classGrade','parallel'].forEach(id => { let el=document.getElementById(id); if(el) el.value=''; });
     showToast(`${fn} ${ln} qo'shildi va yuz saqlandi`, 'success');
@@ -958,13 +970,18 @@ async function markAttendance(personId, timestamp) {
   if (attendances.some(a => a.personId === personId && a.date === today)) return false;
   if (pendingMark.has(personId)) return false;
   pendingMark.set(personId, true);
-  
   let uz = toUzDate(timestamp);
   let mins = uz.getUTCHours() * 60 + uz.getUTCMinutes();
   let status = mins <= ATTEND_CUTOFF_MIN ? 'ontime' : 'late';
-  
-  attendances.push({ id: Date.now() + Math.random(), personId, date: today, timestamp, status });
-  await saveAttendance();
+  try {
+    const res = await apiCall('markAttendance', { personId, date: today, timestamp, status });
+    if (res.exists) { setTimeout(() => pendingMark.delete(personId), 1000); return false; }
+    attendances.push(res.attendance);
+  } catch(e) {
+    console.error('markAttendance error:', e);
+    setTimeout(() => pendingMark.delete(personId), 1000);
+    return false;
+  }
   setTimeout(() => pendingMark.delete(personId), 5000);
 
   let person = people.find(p => p.id === personId);
@@ -981,10 +998,10 @@ async function markAttendance(personId, timestamp) {
 }
 
 async function resetTodayAttendance() {
+  try { await apiCall('resetToday', { date: getToday() }); } catch(e) { showToast('Xatolik: '+e.message, 'error'); return; }
   attendances = attendances.filter(a => a.date !== getToday());
   pendingMark.clear();
-  await saveAttendance();
-  updateAttendanceUI(); 
+  updateAttendanceUI();
   updateLiveList();
   updateDashboard();
   showToast('Bugungi davomat tozalandi', 'warning');
@@ -1012,9 +1029,9 @@ function updateLiveList() {
   let map = getTodayMap();
   let list = document.getElementById('liveList');
   let arrived = [...map.values()].sort((a,b) => b.timestamp - a.timestamp);
-  if (!arrived.length) { 
-    list.innerHTML = '<div class="empty-state" style="padding:20px;"><div class="empty-icon" style="font-size:1.5rem;">⏳</div><p>Hali hech kim aniqlanmadi</p></div>'; 
-    return; 
+  if (!arrived.length) {
+    list.innerHTML = '<div class="empty-state" style="padding:20px;"><div class="empty-icon" style="font-size:1.5rem;">⏳</div><p>Hali hech kim aniqlanmadi</p></div>';
+    return;
   }
   list.innerHTML = arrived.map(rec => {
     let p = people.find(x => x.id === rec.personId);
@@ -1045,10 +1062,10 @@ async function drawAndRecognize() {
   try {
     dets = await faceapi.detectAllFaces(globalVideo, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.55 }))
                 .withFaceLandmarks().withFaceDescriptors();
-  } catch(e) { 
+  } catch(e) {
     console.error('Detection error:', e);
-    requestAnimationFrame(drawAndRecognize); 
-    return; 
+    requestAnimationFrame(drawAndRecognize);
+    return;
   }
 
   for (let det of dets) {
@@ -1228,16 +1245,14 @@ function updateDashboard() {
     options: { responsive:true, cutout:'70%', plugins:{ legend:{ position:'bottom', labels:{ color:'#9aa7bd', padding:16, font:{size:12} } } } }
   });
 
-  // Haftalik dinamika — Dushanbadan boshlab, UTC+5 bo'yicha bugungi kun
   let days = ['Du', 'Se', 'Ch', 'Pa', 'Ju', 'Sha', 'Ya'];
   let uzNow = toUzDate();
-  let todayIdx = (uzNow.getUTCDay() + 6) % 7; // Dushanba=0, Yakshanba=6
+  let todayIdx = (uzNow.getUTCDay() + 6) % 7;
   let weekData = days.map((d, i) => {
-    if (i > todayIdx) return null; // kelajak kunlari ko'rsatilmaydi
+    if (i > todayIdx) return null;
     let dayUz = new Date(uzNow.getTime() - (todayIdx - i) * 24 * 60 * 60 * 1000);
     let dayKey = dateKeyFromUz(dayUz);
-    if (i === todayIdx) return ontime + late; // bugun — joriy hisob
-    // o'tgan kunlar uchun real saqlangan davomat soni
+    if (i === todayIdx) return ontime + late;
     return attendances.filter(a => a.date === dayKey).length;
   });
 
@@ -1310,7 +1325,6 @@ function getPctStudents() {
 function renderPercentageReport() {
   let tbody = document.getElementById('pctBody');
   let students = getPctStudents();
-  // Umumiy o'quv kunlari — davomat yozilgan noyob sanalar
   let allDates = [...new Set(attendances.map(a => a.date))].sort();
   let totalDays = allDates.length;
 
@@ -1393,8 +1407,7 @@ async function initApp() {
   let dateStr = `${weekDays[uzNow.getUTCDay()]}, ${uzNow.getUTCDate()}-${months[uzNow.getUTCMonth()]}, ${uzNow.getUTCFullYear()}`;
   document.getElementById('topDate').textContent = dateStr;
 
-  await loadPeople();
-  await loadAttendance();
+  await loadApp();
   await loadModels();
 
   updateAttendanceUI();
@@ -1413,13 +1426,11 @@ async function initApp() {
     let isStudent = document.getElementById('roleFilterSelect').value === 'student';
     document.getElementById('classFilterGroup').style.display   = isStudent ? '' : 'none';
     document.getElementById('parallelFilterGroup').style.display = isStudent ? '' : 'none';
-    // o'qituvchi yoki "hammasi" tanlanganda sinf/paralel filtrlari tozalanadi
     if (!isStudent) {
       document.getElementById('classFilterSelect').value = '';
       document.getElementById('parallelFilterSelect').value = '';
       updateParallels();
     } else {
-      // o'quvchi tanlanganda sinf/paralel ro'yxatini yangilash
       updateStudentFilters();
     }
     renderReport();
@@ -1431,8 +1442,6 @@ async function initApp() {
   document.getElementById('pctClassSelect').addEventListener('change', () => { updatePctParallels(); renderPercentageReport(); });
   document.getElementById('pctParallelSelect').addEventListener('change', renderPercentageReport);
   document.getElementById('exportPctBtn').onclick = exportPercentage;
-
-  document.getElementById('storageInfo').textContent = '💾 LocalStorage';
 }
 
 window.addEventListener('DOMContentLoaded', () => {
